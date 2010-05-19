@@ -4,18 +4,11 @@
 
 /**
  * For more information read the introduction towards the end of this file.
+ *
+ * Ported to EE2 by Jack McDade (http://jackmcdade.com)
  **/
 
-/*
-* Change log:
-* Beta 1: Proof of concept. Single tag outputs nested UL of subcategories based on root node ID. Optionally shows root node as first UL/LI.
-* Beta 1.1:
-	Supports category_id, category_name, category_url_tile and category_description tags
-	Supports sort_by (default = cat_order), options = name, id, order
-	Supports sort_direction (default = asc), options = asc, desc
-	Supports backspace
-	Supports style (default = linear), options = linear, nested
-*/
+
  
 // ----------------------------------------
 //  Plugin information array
@@ -23,8 +16,8 @@
 
 $plugin_info = array(
 						'pi_name'			=> 'Recursive Subcategories',
-						'pi_version'		=> 'Beta 1.1',
-						'pi_author'			=> 'Mark J. Reeves - Slim Kiwi',
+						'pi_version'		=> 'Beta 2.0',
+						'pi_author'			=> 'Mark J. Reeves - Slim Kiwi + Jack McDade',
 						'pi_author_url'		=> 'http://www.slimkiwi.com/',
 						'pi_description'	=> 'Show a recursive list of subcategories for a given category. Optionally show the root node.',
 						'pi_usage'			=> Recursive_Subcategories::usage()
@@ -52,6 +45,7 @@ class recursive_subcategories {
 	var $sort_direction = ' ASC ';
 	var $backspace = 0;
 	var $style = 'nested';
+	
 
 	// ----------------------------------------
 	//  various plugin attributes
@@ -63,6 +57,7 @@ class recursive_subcategories {
 	
 	function recursive_subcategories()
 	{	//return subcategories
+		$this->EE =& get_instance();
 		$this->get_nested_kickoff($this->parent_id, $this->show_parent);
 		$this->return_data = substr($this->return_data, 0, strlen($this->return_data)-$this->backspace);
 		return $this->return_data;
@@ -93,37 +88,36 @@ class recursive_subcategories {
 	
 	function get_nested_kickoff()
 	{
-		global $TMPL;
 
-		if ($TMPL->fetch_param('parent_id') != '')
+		if ($this->EE->TMPL->fetch_param('parent_id') != '')
 		{
-			$this->parent_id = $TMPL->fetch_param('parent_id');
+			$this->parent_id = $this->EE->TMPL->fetch_param('parent_id');
 		}
 		else
 		{
 			$this->parent_id = 1;	//	Default setting
 		}
 
-		if ($TMPL->fetch_param('show_parent') != '')
+		if ($this->EE->TMPL->fetch_param('show_parent') != '')
 		{
-			$this->show_parent = $TMPL->fetch_param('show_parent');
+			$this->show_parent = $this->EE->TMPL->fetch_param('show_parent');
 		}
 		else
 		{
 			$this->show_parent = $this->show_parent;	//	Default setting
 		}
 		
-		if ($TMPL->fetch_param('sort_by') != '')
+		if ($this->EE->TMPL->fetch_param('sort_by') != '')
 		{
-			if ($TMPL->fetch_param('sort_by') == 'name')
+			if ($this->EE->TMPL->fetch_param('sort_by') == 'name')
 			{
 				$this->sort_by = " ORDER BY cat_name ";
 			}
-			elseif ($TMPL->fetch_param('sort_by') == 'id')
+			elseif ($this->EE->TMPL->fetch_param('sort_by') == 'id')
 			{
 				$this->sort_by = " ORDER BY cat_id ";
 			}
-			elseif ($TMPL->fetch_param('sort_by') == 'order')
+			elseif ($this->EE->TMPL->fetch_param('sort_by') == 'order')
 			{
 				$this->sort_by = " ORDER BY cat_order ";
 			}
@@ -133,13 +127,13 @@ class recursive_subcategories {
 			$this->sort_by = $this->sort_by;	//	Default setting
 		}
 		
-		if ($TMPL->fetch_param('sort_direction') != '')
+		if ($this->EE->TMPL->fetch_param('sort_direction') != '')
 		{
-			if ($TMPL->fetch_param('sort_direction') == 'asc')
+			if ($this->EE->TMPL->fetch_param('sort_direction') == 'asc')
 			{
 				$this->sort_direction = " ASC ";
 			}
-			elseif ($TMPL->fetch_param('sort_direction') == 'desc')
+			elseif ($this->EE->TMPL->fetch_param('sort_direction') == 'desc')
 			{
 				$this->sort_direction = " DESC ";
 			}
@@ -149,12 +143,12 @@ class recursive_subcategories {
 			$this->sort_direction = $this->sort_direction;	//	Default setting
 		}
 		
-		if ($TMPL->fetch_param('backspace') != 0)
-			$this->backspace = $TMPL->fetch_param('backspace');
+		if ($this->EE->TMPL->fetch_param('backspace') != 0)
+			$this->backspace = $this->EE->TMPL->fetch_param('backspace');
 		
-		if ($TMPL->fetch_param('style') != '')
+		if ($this->EE->TMPL->fetch_param('style') != '')
 		{
-			$this->style = $TMPL->fetch_param('style');
+			$this->style = $this->EE->TMPL->fetch_param('style');
 		}
 		else
 		{
@@ -169,29 +163,28 @@ class recursive_subcategories {
 	function get_nested($parent_id, $show_cat=0)
 	{
 		$str_output;
-		global $DB, $TMPL, $FNS;
 		
-    	$tagdata = $TMPL->tagdata;
+    $tagdata = $this->EE->TMPL->tagdata;
 		$tagdata_top = '';
 
 		if ($show_cat==1)
 		{
-			$query = $DB->query("Select cat_id, cat_name, cat_url_title, cat_description from exp_categories where cat_id = $parent_id");
-			foreach($query->result as $row)
+			$query = $this->EE->db->query("Select cat_id, cat_name, cat_url_title, cat_description from exp_categories where cat_id = $parent_id");
+			foreach($query->result_array() as $row)
 			{
-				$tagdata_top = $TMPL->tagdata;
+				$tagdata_top = $this->EE->TMPL->tagdata;
 				
 				// ----------------------------------------
 				//   parse single variables
 				// ----------------------------------------
-				foreach ($TMPL->var_single as $key => $val)
+				foreach ($this->EE->TMPL->var_single as $key => $val)
 				{
 					//parse category_name variable
 					if ($key == 'category_name')
 					{
 						if (isset($row['cat_name']))
 						{
-							$tagdata_top = $TMPL->swap_var_single($val, $row['cat_name'], $tagdata_top);
+							$tagdata_top = $this->EE->TMPL->swap_var_single($val, $row['cat_name'], $tagdata_top);
 						}
 					}
 					//parse category_id variable
@@ -199,7 +192,7 @@ class recursive_subcategories {
 					{
 						if (isset($row['cat_id']))
 						{
-							$tagdata_top = $TMPL->swap_var_single($val, $row['cat_id'], $tagdata_top);
+							$tagdata_top = $this->EE->TMPL->swap_var_single($val, $row['cat_id'], $tagdata_top);
 						}
 					}
 					//parse category_url_title variable
@@ -207,7 +200,7 @@ class recursive_subcategories {
 					{
 						if (isset($row['cat_url_title']))
 						{
-							$tagdata_top = $TMPL->swap_var_single($val, $row['cat_url_title'], $tagdata_top);
+							$tagdata_top = $this->EE->TMPL->swap_var_single($val, $row['cat_url_title'], $tagdata_top);
 						}
 					}
 					//parse category_description variable
@@ -215,7 +208,7 @@ class recursive_subcategories {
 					{
 						if (isset($row['cat_description']))
 						{
-							$tagdata_top = $TMPL->swap_var_single($val, $row['cat_description'], $tagdata_top);
+							$tagdata_top = $this->EE->TMPL->swap_var_single($val, $row['cat_description'], $tagdata_top);
 						}
 					}
 				}
@@ -224,20 +217,21 @@ class recursive_subcategories {
 				$tagdata_top = '<ul><li>' . $tagdata_top;
 		}
 
-		$query = $DB->query("Select cat_id, cat_name, cat_url_title, cat_description from exp_categories where parent_id = $parent_id" . $this->sort_by . $this->sort_direction);
+		$query = $this->EE->db->query("Select cat_id, cat_name, cat_url_title, cat_description from exp_categories where parent_id = $parent_id" . $this->sort_by . $this->sort_direction);
 		
 		if ($query->num_rows > 0)
 		{
 			if ($this->style == 'nested')
 				$this->return_data .= '<ul>';
-			foreach($query->result as $row)
+				
+			foreach($query->result_array() as $row)
 			{
-				$tagdata = $TMPL->tagdata;
+				$tagdata = $this->EE->TMPL->tagdata;
 				
 				// ----------------------------------------
 				//   parse single variables
 				// ----------------------------------------
-				foreach ($TMPL->var_single as $key => $val)
+				foreach ($this->EE->TMPL->var_single as $key => $val)
 				{
 					//parse category_name variable
 					if ($key == 'category_name')
@@ -245,9 +239,9 @@ class recursive_subcategories {
 						if (isset($row['cat_name']))
 						{
 							if ($this->style == 'nested')
-								$tagdata = '<li>' . $TMPL->swap_var_single($val, $row['cat_name'], $tagdata) . '</li>';
+								$tagdata = '<li>' . $this->EE->TMPL->swap_var_single($val, $row['cat_name'], $tagdata) . '</li>';
 							else
-								$tagdata = $TMPL->swap_var_single($val, $row['cat_name'], $tagdata);
+								$tagdata = $this->EE->TMPL->swap_var_single($val, $row['cat_name'], $tagdata);
 							//$tagdata = str_replace("&#47;", "/", $tagdata);
 						}
 					}
@@ -257,9 +251,9 @@ class recursive_subcategories {
 						if (isset($row['cat_id']))
 						{
 							if ($this->style == 'nested')
-								$tagdata = '<li>' . $TMPL->swap_var_single($val, $row['cat_id'], $tagdata) . '</li>';
+								$tagdata = '<li>' . $this->EE->TMPL->swap_var_single($val, $row['cat_id'], $tagdata) . '</li>';
 							else
-								$tagdata = $TMPL->swap_var_single($val, $row['cat_id'], $tagdata);
+								$tagdata = $this->EE->TMPL->swap_var_single($val, $row['cat_id'], $tagdata);
 							//$tagdata = str_replace("&#47;", "/", $tagdata);
 						}
 					}
@@ -269,9 +263,9 @@ class recursive_subcategories {
 						if (isset($row['cat_url_title']))
 						{
 							if ($this->style == 'nested')
-								$tagdata = '<li>' . $TMPL->swap_var_single($val, $row['cat_url_title'], $tagdata) . '</li>';
+								$tagdata = '<li>' . $this->EE->TMPL->swap_var_single($val, $row['cat_url_title'], $tagdata) . '</li>';
 							else
-								$tagdata = $TMPL->swap_var_single($val, $row['cat_url_title'], $tagdata);
+								$tagdata = $this->EE->TMPL->swap_var_single($val, $row['cat_url_title'], $tagdata);
 							//$tagdata = str_replace("&#47;", "/", $tagdata);
 						}
 					}
@@ -281,9 +275,9 @@ class recursive_subcategories {
 						if (isset($row['cat_description']))
 						{
 							if ($this->style == 'nested')
-								$tagdata = '<li>' . $TMPL->swap_var_single($val, $row['cat_description'], $tagdata) . '</li>';
+								$tagdata = '<li>' . $this->EE->TMPL->swap_var_single($val, $row['cat_description'], $tagdata) . '</li>';
 							else
-								$tagdata = $TMPL->swap_var_single($val, $row['cat_description'], $tagdata);
+								$tagdata = $this->EE->TMPL->swap_var_single($val, $row['cat_description'], $tagdata);
 							//$tagdata = str_replace("&#47;", "/", $tagdata);
 						}
 					}
@@ -303,26 +297,6 @@ class recursive_subcategories {
 			if ($this->style == 'nested')
 				$this->return_data .= '</li></ul>';
 		}
-
-		/*if ($query->num_rows > 0)
-		{
-		$str_output .= '<ul>';
-		foreach($query->result as $row)
-		{
-			$str_output .= '<li>' . $row['cat_name'];
-			$parent_id = $row['cat_id'] + 0;
-			$str_output .= $this->get_nested($parent_id);
-			$str_output .= "</li>\n";
-		}
-		$str_output .= '</ul>';
-		}
-
-		if ($show_cat==1)
-		{
-			$str_output .= '</li></ul>';
-		}
-		
-		return $str_output;*/
 	}
 	
 
